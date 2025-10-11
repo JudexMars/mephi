@@ -13,14 +13,6 @@ import java.util.regex.Pattern;
 
 /**
  * Сервис для получения метеорологических данных из Yandex Weather API
- * 
- * Пример использования:
- * <pre>
- * String apiKey = "ваш_api_ключ";
- * WeatherService service = new WeatherService(apiKey);
- * WeatherData data = service.getWeatherData(55.75, 37.62, 7);
- * System.out.println("Температура: " + data.currentTemperature + "°C");
- * </pre>
  */
 public class WeatherService {
     
