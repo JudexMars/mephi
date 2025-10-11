@@ -42,7 +42,7 @@ public final class Main {
         
         var apiKey = Files.readString(apiKeyPath).trim();
         
-        if (apiKey.isEmpty() || "YOUR_YANDEX_WEATHER_API_KEY".equals(apiKey)) {
+        if (apiKey.isEmpty()) {
             throw new IOException("API ключ не настроен. Замените содержимое файла " + 
                     apiKeyPath.toAbsolutePath() + " на ваш реальный API ключ от Yandex Weather.");
         }
