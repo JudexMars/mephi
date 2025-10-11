@@ -1,4 +1,4 @@
-package ru.example;
+package ru.example.calculator;
 
 import java.util.Scanner;
 

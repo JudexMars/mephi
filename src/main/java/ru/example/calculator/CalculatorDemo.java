@@ -1,4 +1,4 @@
-package ru.example;
+package ru.example.calculator;
 
 /**
  * Демонстрационный класс для показа возможностей накопительного ООП калькулятора
@@ -63,7 +63,7 @@ public final class CalculatorDemo {
         System.out.println("Первый калькулятор: " + accumulator.getCurrentResult());
         
         System.out.println("\n=== Демонстрация завершена ===");
-        System.out.println("Для интерактивной работы запустите ru.example.PlayGround.main()");
+        System.out.println("Для интерактивной работы запустите ru.example.calculator.PlayGround.main()");
         System.out.println("\nВ интерактивном режиме:");
         System.out.println("- Введите начальное число");
         System.out.println("- Затем операцию и число для накопительных вычислений");
