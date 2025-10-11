@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * Сервис для получения метеорологических данных из Yandex Weather API
  */
@@ -74,20 +76,16 @@ public class WeatherService {
     }
 
     private static WeatherData parseWeatherData(String jsonResponse) {
-        var weatherData = new WeatherData();
-        weatherData.fullResponse = jsonResponse;
-        
         // Извлекаем текущую температуру из fact.temp
-        weatherData.currentTemperature = extractCurrentTemperature(jsonResponse);
+        var currentTemperature = extractCurrentTemperature(jsonResponse);
         
         // Извлекаем средние температуры из прогноза
-        weatherData.forecastTemperatures = extractForecastTemperatures(jsonResponse);
+        var forecastTemperatures = extractForecastTemperatures(jsonResponse);
         
         // Вычисляем среднюю температуру по прогнозу
-        weatherData.averageForecastTemperature = calculateAverageTemperature(
-                weatherData.forecastTemperatures);
-        
-        return weatherData;
+        var averageForecastTemperature = calculateAverageTemperature(forecastTemperatures);
+
+        return new WeatherData(jsonResponse, currentTemperature, forecastTemperatures, averageForecastTemperature);
     }
 
     private static Integer extractCurrentTemperature(String json) {
@@ -114,10 +112,7 @@ public class WeatherService {
         
         return temperatures;
     }
-    
-    /**
-     * Вычисляет среднее арифметическое температур
-     */
+
     private static Double calculateAverageTemperature(List<Integer> temperatures) {
         if (temperatures.isEmpty()) {
             return null;
@@ -125,16 +120,14 @@ public class WeatherService {
         var sum = temperatures.stream().mapToDouble(temp -> temp).sum();
         return sum / temperatures.size();
     }
-    
-    /**
-     * Класс для хранения данных о погоде
-     */
-    public static class WeatherData {
-        public String fullResponse;
-        public Integer currentTemperature;
-        public List<Integer> forecastTemperatures;
-        public Double averageForecastTemperature;
-        
+
+    public record WeatherData(
+            String fullResponse,
+            Integer currentTemperature,
+            List<Integer> forecastTemperatures,
+            Double averageForecastTemperature
+    ) {
+        @NotNull
         @Override
         public String toString() {
             var sb = new StringBuilder();
