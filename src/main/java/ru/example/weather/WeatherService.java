@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Сервис для получения метеорологических данных из Yandex Weather API
@@ -123,9 +124,9 @@ public class WeatherService {
 
     public record WeatherData(
             String fullResponse,
-            Integer currentTemperature,
-            List<Integer> forecastTemperatures,
-            Double averageForecastTemperature
+            @Nullable Integer currentTemperature,
+            @Nullable List<Integer> forecastTemperatures,
+            @Nullable Double averageForecastTemperature
     ) {
         @NotNull
         @Override
