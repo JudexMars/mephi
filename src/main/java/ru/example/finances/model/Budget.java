@@ -18,7 +18,7 @@ public class Budget {
 
     public Budget() {
         this.createdAt = System.currentTimeMillis();
-        this.updatedAt = this.createdAt;
+        this.updatedAt = createdAt;
         this.spent = 0.0;
     }
 
@@ -100,26 +100,14 @@ public class Budget {
         this.updatedAt = System.currentTimeMillis();
     }
 
-    public long getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(long createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public long getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(long updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         Budget budget = (Budget) o;
         return Objects.equals(category, budget.category);
     }

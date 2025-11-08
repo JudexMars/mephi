@@ -3,6 +3,7 @@ package ru.example.finances.service;
 import java.util.List;
 import java.util.Map;
 
+import org.jetbrains.annotations.Nullable;
 import ru.example.finances.model.Category;
 import ru.example.finances.model.Transaction;
 import ru.example.finances.model.Wallet;
@@ -63,6 +64,20 @@ public class FinanceService {
      * @return operation result
      */
     public OperationResult addIncome(String category, double amount, String description) {
+        OperationResult x = validateOperation(category, amount);
+        if (x != null) {
+            return x;
+        }
+
+        Transaction transaction = new Transaction(Transaction.Type.INCOME, category, amount, description);
+        currentWallet.addTransaction(transaction);
+        saveWallet();
+
+        return new OperationResult(true, String.format("Доход добавлен: %.2f руб. в категории '%s'", amount, category));
+    }
+
+    @Nullable
+    private OperationResult validateOperation(String category, double amount) {
         if (currentWallet == null) {
             return new OperationResult(false, "Кошелек не загружен.");
         }
@@ -74,12 +89,7 @@ public class FinanceService {
         if (!ValidationUtils.isValidAmount(amount)) {
             return new OperationResult(false, "Неверная сумма. Сумма должна быть положительной.");
         }
-
-        Transaction transaction = new Transaction(Transaction.Type.INCOME, category, amount, description);
-        currentWallet.addTransaction(transaction);
-        saveWallet();
-
-        return new OperationResult(true, String.format("Доход добавлен: %.2f руб. в категории '%s'", amount, category));
+        return null;
     }
 
     /**
@@ -90,16 +100,9 @@ public class FinanceService {
      * @return operation result
      */
     public OperationResult addExpense(String category, double amount, String description) {
-        if (currentWallet == null) {
-            return new OperationResult(false, "Кошелек не загружен.");
-        }
-
-        if (!ValidationUtils.isValidCategory(category)) {
-            return new OperationResult(false, "Неверное название категории.");
-        }
-
-        if (!ValidationUtils.isValidAmount(amount)) {
-            return new OperationResult(false, "Неверная сумма. Сумма должна быть положительной.");
+        OperationResult x = validateOperation(category, amount);
+        if (x != null) {
+            return x;
         }
 
         Transaction transaction = new Transaction(Transaction.Type.EXPENSE, category, amount, description);
@@ -147,18 +150,6 @@ public class FinanceService {
      */
     public Map<String, Double> getExpensesByCategory() {
         return currentWallet != null ? currentWallet.getExpensesByCategory() : Map.of();
-    }
-
-    /**
-     * Gets transactions for specific categories.
-     * @param categories list of category names
-     * @return list of transactions in the specified categories
-     */
-    public List<Transaction> getTransactionsByCategories(List<String> categories) {
-        if (currentWallet == null) {
-            return List.of();
-        }
-        return currentWallet.getTransactionsByCategories(categories);
     }
 
     /**
@@ -227,26 +218,6 @@ public class FinanceService {
             return new OperationResult(true, "Данные кошелька экспортированы в " + exportPath);
         } catch (Exception e) {
             return new OperationResult(false, "Ошибка экспорта: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Imports wallet data from a file.
-     * @param importPath the path to import from
-     * @return operation result
-     */
-    public OperationResult importWallet(String importPath) {
-        try {
-            Wallet importedWallet = walletStorage.importWallet(importPath);
-            if (importedWallet != null) {
-                this.currentWallet = importedWallet;
-                saveWallet();
-                return new OperationResult(true, "Данные кошелька импортированы из " + importPath);
-            } else {
-                return new OperationResult(false, "Не удалось импортировать данные кошелька.");
-            }
-        } catch (Exception e) {
-            return new OperationResult(false, "Ошибка импорта: " + e.getMessage());
         }
     }
 
