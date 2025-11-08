@@ -16,6 +16,7 @@ public class ConsoleInterface {
     private final Scanner scanner;
     private User currentUser;
     private boolean running;
+    private boolean userSessionActive;
 
     public ConsoleInterface() {
         this.urlService = new UrlShortenerService();
@@ -29,12 +30,24 @@ public class ConsoleInterface {
      */
     public void start() {
         displayWelcome();
-        initializeUser();
         
         while (running) {
-            displayNotifications();
-            displayMenu();
-            handleUserChoice();
+            initializeUser();
+            userSessionActive = true;
+            
+            // User session loop
+            while (running && userSessionActive) {
+                displayNotifications();
+                displayMenu();
+                handleUserChoice();
+            }
+            
+            if (running) {
+                System.out.println("👋 User session ended. Console cleared.");
+                System.out.println("Press Enter to continue with a new user session...");
+                scanner.nextLine();
+                displayWelcome();
+            }
         }
         
         displayGoodbye();
@@ -111,9 +124,10 @@ public class ConsoleInterface {
         System.out.println("5. 👤 User information");
         System.out.println("6. 🔧 System statistics");
         System.out.println("7. 🧹 Clear my notifications");
-        System.out.println("8. ❌ Exit");
+        System.out.println("8. 🚪 Switch user (logout)");
+        System.out.println("9. ❌ Exit application");
         System.out.println("=".repeat(60));
-        System.out.print("Choose option (1-8): ");
+        System.out.print("Choose option (1-9): ");
     }
 
     private void handleUserChoice() {
@@ -142,6 +156,9 @@ public class ConsoleInterface {
                 clearNotifications();
                 break;
             case "8":
+                switchUser();
+                break;
+            case "9":
                 running = false;
                 break;
             default:
@@ -296,6 +313,24 @@ public class ConsoleInterface {
         }
     }
 
+    private void switchUser() {
+        System.out.println("\n🚪 SWITCH USER");
+        System.out.println("-".repeat(40));
+        System.out.println("👤 Current user: " + currentUser.getUuid());
+        System.out.print("Are you sure you want to logout and switch to another user? (y/N): ");
+        
+        String confirmation = scanner.nextLine().trim().toLowerCase();
+        if (confirmation.equals("y") || confirmation.equals("yes")) {
+            System.out.println("✅ Logging out current user...");
+            System.out.println("🧹 Clearing console...");
+            
+            // End current user session
+            userSessionActive = false;
+        } else {
+            System.out.println("❌ Operation cancelled. Staying with current user.");
+        }
+    }
+
     private static String extractShortCode(String input) {
         if (input.startsWith("clck.ru/")) {
             return input.substring(8);
@@ -332,8 +367,11 @@ public class ConsoleInterface {
         System.out.println("\n" + "=".repeat(60));
         System.out.println("👋 THANK YOU FOR USING URL SHORTENER SERVICE!");
         System.out.println("=".repeat(60));
-        System.out.println("💡 Remember your User ID: " + currentUser.getUuid());
-        System.out.println("🔄 Use it to continue your session next time.");
+        if (currentUser != null) {
+            System.out.println("💡 Last User ID: " + currentUser.getUuid());
+            System.out.println("🔄 Use it to continue your session next time.");
+        }
+        System.out.println("✨ Application closed successfully.");
         System.out.println("=".repeat(60));
     }
 }
