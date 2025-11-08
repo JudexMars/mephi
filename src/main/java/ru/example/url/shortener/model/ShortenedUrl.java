@@ -8,9 +8,9 @@ public class ShortenedUrl {
     private final String shortCode;
     private final UUID userId;
     private int clickCount;
-    private final int maxClicks;
+    private int maxClicks;
     private final LocalDateTime createdAt;
-    private final LocalDateTime expiresAt;
+    private LocalDateTime expiresAt;
     private UrlStatus status;
 
     public ShortenedUrl(String originalUrl, String shortCode, UUID userId, int maxClicks, LocalDateTime expiresAt) {
@@ -62,6 +62,14 @@ public class ShortenedUrl {
 
     public void setStatus(UrlStatus status) {
         this.status = status;
+    }
+
+    public void setMaxClicks(int maxClicks) {
+        this.maxClicks = maxClicks;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public boolean isExpired() {

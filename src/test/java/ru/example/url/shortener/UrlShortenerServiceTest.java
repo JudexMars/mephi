@@ -326,4 +326,115 @@ class UrlShortenerServiceTest {
         assertTrue(statistics.contains("Total Users: 2"));
         assertTrue(statistics.contains("Active URLs: 3"));
     }
+
+    @Test
+    @Order(11)
+    @DisplayName("Should update click limit correctly")
+    void testUpdateClickLimit() {
+        // Given
+        User user = service.createUser();
+        ShortenedUrl url = service.shortenUrl("https://example.com", user.getUuid(), 10, 24);
+        String shortCode = url.getShortCode();
+        
+        // When & Then - Update click limit successfully
+        assertTrue(service.updateClickLimit(shortCode, user.getUuid(), 20));
+        
+        // Verify the limit was updated
+        ShortenedUrl updatedUrl = service.getUrlInfo(shortCode);
+        assertEquals(20, updatedUrl.getMaxClicks());
+        
+        // Test with non-existent URL
+        assertFalse(service.updateClickLimit("nonexistent", user.getUuid(), 15));
+        
+        // Test with wrong user
+        User wrongUser = service.createUser();
+        assertThrows(SecurityException.class, () -> 
+            service.updateClickLimit(shortCode, wrongUser.getUuid(), 15));
+        
+        // Test with invalid limit
+        assertThrows(IllegalArgumentException.class, () -> 
+            service.updateClickLimit(shortCode, user.getUuid(), 0));
+        assertThrows(IllegalArgumentException.class, () -> 
+            service.updateClickLimit(shortCode, user.getUuid(), -5));
+    }
+
+    @Test
+    @Order(12)
+    @DisplayName("Should update expiration time correctly")
+    void testUpdateExpirationTime() {
+        // Given
+        User user = service.createUser();
+        ShortenedUrl url = service.shortenUrl("https://example.com", user.getUuid(), 10, 24);
+        String shortCode = url.getShortCode();
+        java.time.LocalDateTime originalExpiration = url.getExpiresAt();
+        
+        // When & Then - Update expiration time successfully
+        assertTrue(service.updateExpirationTime(shortCode, user.getUuid(), 12));
+        
+        // Verify the expiration was updated
+        ShortenedUrl updatedUrl = service.getUrlInfo(shortCode);
+        assertTrue(updatedUrl.getExpiresAt().isAfter(originalExpiration));
+        
+        // Test with non-existent URL
+        assertFalse(service.updateExpirationTime("nonexistent", user.getUuid(), 12));
+        
+        // Test with wrong user
+        User wrongUser = service.createUser();
+        assertThrows(SecurityException.class, () -> 
+            service.updateExpirationTime(shortCode, wrongUser.getUuid(), 12));
+        
+        // Test with invalid hours
+        assertThrows(IllegalArgumentException.class, () -> 
+            service.updateExpirationTime(shortCode, user.getUuid(), 0));
+        assertThrows(IllegalArgumentException.class, () -> 
+            service.updateExpirationTime(shortCode, user.getUuid(), -5));
+    }
+
+    @Test
+    @Order(13)
+    @DisplayName("Should deactivate URL correctly")
+    void testDeactivateUrl() {
+        // Given
+        User user = service.createUser();
+        ShortenedUrl url = service.shortenUrl("https://example.com", user.getUuid(), 10, 24);
+        String shortCode = url.getShortCode();
+        
+        // When & Then - Deactivate URL successfully
+        assertTrue(service.deactivateUrl(shortCode, user.getUuid()));
+        
+        // Verify the URL was deactivated
+        ShortenedUrl deactivatedUrl = service.getUrlInfo(shortCode);
+        assertEquals(UrlStatus.EXPIRED, deactivatedUrl.getStatus());
+        
+        // Try to deactivate again (should return false)
+        assertFalse(service.deactivateUrl(shortCode, user.getUuid()));
+        
+        // Test with non-existent URL
+        assertFalse(service.deactivateUrl("nonexistent", user.getUuid()));
+        
+        // Test with wrong user
+        User wrongUser = service.createUser();
+        ShortenedUrl newUrl = service.shortenUrl("https://test.com", user.getUuid(), 10, 24);
+        assertThrows(SecurityException.class, () -> 
+            service.deactivateUrl(newUrl.getShortCode(), wrongUser.getUuid()));
+    }
+
+    @Test
+    @Order(14)
+    @DisplayName("Should not allow modifying inactive URL")
+    void testCannotModifyInactiveUrl() {
+        // Given
+        User user = service.createUser();
+        ShortenedUrl url = service.shortenUrl("https://example.com", user.getUuid(), 10, 24);
+        String shortCode = url.getShortCode();
+        
+        // When - Deactivate the URL
+        service.deactivateUrl(shortCode, user.getUuid());
+        
+        // Then - Try to modify the inactive URL
+        assertThrows(IllegalStateException.class, () -> 
+            service.updateClickLimit(shortCode, user.getUuid(), 20));
+        assertThrows(IllegalStateException.class, () -> 
+            service.updateExpirationTime(shortCode, user.getUuid(), 12));
+    }
 }

@@ -1,5 +1,6 @@
 package ru.example.url.shortener.ui;
 
+import ru.example.url.shortener.config.ConfigLoader;
 import ru.example.url.shortener.model.ShortenedUrl;
 import ru.example.url.shortener.model.User;
 import ru.example.url.shortener.service.UrlShortenerService;
@@ -37,13 +38,13 @@ public class ConsoleInterface {
             
             // User session loop
             while (running && userSessionActive) {
-                displayNotifications();
-                displayMenu();
-                handleUserChoice();
+            displayNotifications();
+            displayMenu();
+            handleUserChoice();
             }
             
             if (running) {
-                System.out.println("👋 User session ended. Console cleared.");
+                System.out.println("👋 User session ended.");
                 System.out.println("Press Enter to continue with a new user session...");
                 scanner.nextLine();
                 displayWelcome();
@@ -123,11 +124,12 @@ public class ConsoleInterface {
         System.out.println("4. 📊 View URL statistics");
         System.out.println("5. 👤 User information");
         System.out.println("6. 🔧 System statistics");
-        System.out.println("7. 🧹 Clear my notifications");
-        System.out.println("8. 🚪 Switch user (logout)");
-        System.out.println("9. ❌ Exit application");
+        System.out.println("7. ⚙️ Manage my URLs");
+        System.out.println("8. 🧹 Clear my notifications");
+        System.out.println("9. 🚪 Switch user (logout)");
+        System.out.println("10. ❌ Exit application");
         System.out.println("=".repeat(60));
-        System.out.print("Choose option (1-9): ");
+        System.out.print("Choose option (1-10): ");
     }
 
     private void handleUserChoice() {
@@ -153,12 +155,15 @@ public class ConsoleInterface {
                 viewSystemStatistics();
                 break;
             case "7":
-                clearNotifications();
+                manageUrls();
                 break;
             case "8":
-                switchUser();
+                clearNotifications();
                 break;
             case "9":
+                switchUser();
+                break;
+            case "10":
                 running = false;
                 break;
             default:
@@ -331,6 +336,167 @@ public class ConsoleInterface {
         }
     }
 
+    private void manageUrls() {
+        System.out.println("\n⚙️ MANAGE MY URLs");
+        System.out.println("-".repeat(40));
+        
+        List<ShortenedUrl> userUrls = urlService.getUserUrls(currentUser.getUuid());
+        if (userUrls.isEmpty()) {
+            System.out.println("📭 You have no URLs to manage.");
+            return;
+        }
+        
+        // Display user's URLs
+        System.out.println("📋 Your URLs:");
+        for (int i = 0; i < userUrls.size(); i++) {
+            ShortenedUrl url = userUrls.get(i);
+            System.out.printf("%d. %s/%s - %s (%d/%d clicks)%n", 
+                i + 1, 
+                ConfigLoader.getBaseUrl(), 
+                url.getShortCode(),
+                getStatusDisplay(url),
+                url.getClickCount(),
+                url.getMaxClicks()
+            );
+        }
+        
+        System.out.println("\n🔧 Management Options:");
+        System.out.println("1. 📊 Update click limit");
+        System.out.println("2. ⏰ Extend expiration time");
+        System.out.println("3. 🚫 Deactivate URL");
+        System.out.println("4. ↩️ Back to main menu");
+        System.out.print("Choose option (1-4): ");
+        
+        String choice = scanner.nextLine().trim();
+        
+        switch (choice) {
+            case "1":
+                updateClickLimit();
+                break;
+            case "2":
+                extendExpirationTime();
+                break;
+            case "3":
+                deactivateUrl();
+                break;
+            case "4":
+                return;
+            default:
+                System.out.println("❌ Invalid choice.");
+        }
+    }
+
+    private void updateClickLimit() {
+        System.out.println("\n📊 UPDATE CLICK LIMIT");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter short code (without " + ConfigLoader.getBaseUrl() + "/): ");
+        String shortCode = scanner.nextLine().trim();
+        
+        if (shortCode.isEmpty()) {
+            System.out.println("❌ Short code cannot be empty.");
+            return;
+        }
+        
+        System.out.print("Enter new click limit (must be positive): ");
+        String limitStr = scanner.nextLine().trim();
+        
+        try {
+            int newLimit = Integer.parseInt(limitStr);
+            
+            boolean success = urlService.updateClickLimit(shortCode, currentUser.getUuid(), newLimit);
+            if (success) {
+                System.out.println("✅ Click limit updated successfully!");
+                System.out.println("🔗 URL: " + ConfigLoader.getBaseUrl() + "/" + shortCode);
+                System.out.println("📊 New limit: " + newLimit + " clicks");
+            } else {
+                System.out.println("❌ URL not found or you don't have permission to modify it.");
+            }
+            
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Invalid number format. Please enter a valid integer.");
+        } catch (IllegalArgumentException e) {
+            System.out.println("❌ " + e.getMessage());
+        } catch (SecurityException e) {
+            System.out.println("❌ " + e.getMessage());
+        } catch (IllegalStateException e) {
+            System.out.println("❌ " + e.getMessage());
+        }
+    }
+
+    private void extendExpirationTime() {
+        System.out.println("\n⏰ EXTEND EXPIRATION TIME");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter short code (without " + ConfigLoader.getBaseUrl() + "/): ");
+        String shortCode = scanner.nextLine().trim();
+        
+        if (shortCode.isEmpty()) {
+            System.out.println("❌ Short code cannot be empty.");
+            return;
+        }
+        
+        System.out.print("Enter additional hours (must be positive): ");
+        String hoursStr = scanner.nextLine().trim();
+        
+        try {
+            int additionalHours = Integer.parseInt(hoursStr);
+            
+            boolean success = urlService.updateExpirationTime(shortCode, currentUser.getUuid(), additionalHours);
+            if (success) {
+                System.out.println("✅ Expiration time extended successfully!");
+                System.out.println("🔗 URL: " + ConfigLoader.getBaseUrl() + "/" + shortCode);
+                System.out.println("⏰ Extended by: " + additionalHours + " hours");
+            } else {
+                System.out.println("❌ URL not found or you don't have permission to modify it.");
+            }
+            
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Invalid number format. Please enter a valid integer.");
+        } catch (IllegalArgumentException e) {
+            System.out.println("❌ " + e.getMessage());
+        } catch (SecurityException e) {
+            System.out.println("❌ " + e.getMessage());
+        } catch (IllegalStateException e) {
+            System.out.println("❌ " + e.getMessage());
+        }
+    }
+
+    private void deactivateUrl() {
+        System.out.println("\n🚫 DEACTIVATE URL");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter short code (without " + ConfigLoader.getBaseUrl() + "/): ");
+        String shortCode = scanner.nextLine().trim();
+        
+        if (shortCode.isEmpty()) {
+            System.out.println("❌ Short code cannot be empty.");
+            return;
+        }
+        
+        System.out.print("Are you sure you want to deactivate this URL? This action cannot be undone. (y/N): ");
+        String confirmation = scanner.nextLine().trim().toLowerCase();
+        
+        if (!confirmation.equals("y") && !confirmation.equals("yes")) {
+            System.out.println("❌ Operation cancelled.");
+            return;
+        }
+        
+        try {
+            boolean success = urlService.deactivateUrl(shortCode, currentUser.getUuid());
+            if (success) {
+                System.out.println("✅ URL deactivated successfully!");
+                System.out.println("🔗 URL: " + ConfigLoader.getBaseUrl() + "/" + shortCode);
+                System.out.println("🚫 Status: Deactivated");
+            } else {
+                System.out.println("❌ URL not found, already inactive, or you don't have permission to modify it.");
+            }
+            
+        } catch (SecurityException e) {
+            System.out.println("❌ " + e.getMessage());
+        }
+    }
+
     private static String extractShortCode(String input) {
         if (input.startsWith("clck.ru/")) {
             return input.substring(8);
@@ -369,7 +535,7 @@ public class ConsoleInterface {
         System.out.println("=".repeat(60));
         if (currentUser != null) {
             System.out.println("💡 Last User ID: " + currentUser.getUuid());
-            System.out.println("🔄 Use it to continue your session next time.");
+        System.out.println("🔄 Use it to continue your session next time.");
         }
         System.out.println("✨ Application closed successfully.");
         System.out.println("=".repeat(60));

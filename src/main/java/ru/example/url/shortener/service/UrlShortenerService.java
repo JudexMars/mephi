@@ -1,5 +1,6 @@
 package ru.example.url.shortener.service;
 
+import ru.example.url.shortener.config.ConfigLoader;
 import ru.example.url.shortener.model.ShortenedUrl;
 import ru.example.url.shortener.model.User;
 import ru.example.url.shortener.model.UrlStatus;
@@ -9,6 +10,7 @@ import ru.example.url.shortener.util.NotificationService;
 import java.awt.Desktop;
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -17,8 +19,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class UrlShortenerService {
-    private static final int DEFAULT_MAX_CLICKS = 100;
-    private static final int DEFAULT_EXPIRATION_HOURS = 24;
     private static final Pattern URL_PATTERN = Pattern.compile(
         "^(https?://)?" + // Protocol (optional)
         "(?!-)" + // Domain cannot start with hyphen
@@ -67,7 +67,7 @@ public class UrlShortenerService {
      * Creates a shortened URL for the given original URL and user
      */
     public ShortenedUrl shortenUrl(String originalUrl, UUID userId) {
-        return shortenUrl(originalUrl, userId, DEFAULT_MAX_CLICKS, DEFAULT_EXPIRATION_HOURS);
+        return shortenUrl(originalUrl, userId, ConfigLoader.getDefaultMaxClicks(), ConfigLoader.getDefaultExpirationHours());
     }
 
     /**
@@ -227,7 +227,8 @@ public class UrlShortenerService {
      * Starts the background cleanup task for expired URLs
      */
     private void startCleanupTask() {
-        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredUrls, 5, 5, TimeUnit.MINUTES);
+        int intervalMinutes = ConfigLoader.getCleanupIntervalMinutes();
+        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredUrls, intervalMinutes, intervalMinutes, TimeUnit.MINUTES);
     }
 
     /**
@@ -270,6 +271,98 @@ public class UrlShortenerService {
      */
     public void setTestMode(boolean testMode) {
         this.testMode = testMode;
+    }
+
+    /**
+     * Updates the click limit for a URL (only by owner)
+     */
+    public boolean updateClickLimit(String shortCode, UUID userId, int newLimit) {
+        if (newLimit <= 0) {
+            throw new IllegalArgumentException("Click limit must be positive");
+        }
+        
+        ShortenedUrl url = storage.getUrlByShortCode(shortCode);
+        if (url == null) {
+            return false; // URL not found
+        }
+        
+        if (!url.getUserId().equals(userId)) {
+            throw new SecurityException("Only the owner can modify this URL");
+        }
+        
+        if (url.getStatus() != UrlStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot modify inactive URL");
+        }
+        
+        url.setMaxClicks(newLimit);
+        storage.updateUrl(url);
+        
+        // Notify about the change
+        notificationService.addNotification(userId, 
+            "🔧 Click limit updated for " + ConfigLoader.getBaseUrl() + "/" + shortCode + 
+            " to " + newLimit + " clicks");
+        
+        return true;
+    }
+
+    /**
+     * Updates the expiration time for a URL (only by owner)
+     */
+    public boolean updateExpirationTime(String shortCode, UUID userId, int additionalHours) {
+        if (additionalHours <= 0) {
+            throw new IllegalArgumentException("Additional hours must be positive");
+        }
+        
+        ShortenedUrl url = storage.getUrlByShortCode(shortCode);
+        if (url == null) {
+            return false; // URL not found
+        }
+        
+        if (!url.getUserId().equals(userId)) {
+            throw new SecurityException("Only the owner can modify this URL");
+        }
+        
+        if (url.getStatus() != UrlStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot modify inactive URL");
+        }
+        
+        url.setExpiresAt(url.getExpiresAt().plusHours(additionalHours));
+        storage.updateUrl(url);
+        
+        // Notify about the change
+        notificationService.addNotification(userId, 
+            "⏰ Expiration extended for " + ConfigLoader.getBaseUrl() + "/" + shortCode + 
+            " by " + additionalHours + " hours. New expiration: " + 
+            url.getExpiresAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        
+        return true;
+    }
+
+    /**
+     * Deactivates a URL (only by owner)
+     */
+    public boolean deactivateUrl(String shortCode, UUID userId) {
+        ShortenedUrl url = storage.getUrlByShortCode(shortCode);
+        if (url == null) {
+            return false; // URL not found
+        }
+        
+        if (!url.getUserId().equals(userId)) {
+            throw new SecurityException("Only the owner can deactivate this URL");
+        }
+        
+        if (url.getStatus() != UrlStatus.ACTIVE) {
+            return false; // Already inactive
+        }
+        
+        url.setStatus(UrlStatus.EXPIRED);
+        storage.updateUrl(url);
+        
+        // Notify about the change
+        notificationService.addNotification(userId, 
+            "🚫 URL deactivated: " + ConfigLoader.getBaseUrl() + "/" + shortCode);
+        
+        return true;
     }
 
     /**
