@@ -25,7 +25,7 @@ A comprehensive URL shortening service implemented in Java with unique features 
 
 1. **Compile the project:**
    ```bash
-   cd /Users/bondarchukdo/IdeaProjects/MEPHI
+   cd PROJECT_DIR
    ./gradlew build
    ```
 
@@ -33,20 +33,6 @@ A comprehensive URL shortening service implemented in Java with unique features 
    ```bash
    ./gradlew run -PmainClass=ru.example.url.shortener.UrlShortenerApplication
    ```
-
-3. **Or run directly with Java:**
-   ```bash
-   java -cp build/classes/java/main ru.example.url.shortener.UrlShortenerApplication
-   ```
-
-### Running Tests
-
-```bash
-# Compile and run the test suite
-javac -cp src/main/java src/test/java/ru/example/url_shortener/UrlShortenerTest.java
-java -cp src/main/java:src/test/java ru.example.url_shortener.UrlShortenerTest
-```
-
 ## Usage Guide
 
 ### Console Interface
