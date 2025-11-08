@@ -1,0 +1,339 @@
+package ru.example.url.shortener.ui;
+
+import ru.example.url.shortener.model.ShortenedUrl;
+import ru.example.url.shortener.model.User;
+import ru.example.url.shortener.service.UrlShortenerService;
+import ru.example.url.shortener.util.NotificationService;
+
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Scanner;
+import java.util.UUID;
+
+public class ConsoleInterface {
+    private final UrlShortenerService urlService;
+    private final NotificationService notificationService;
+    private final Scanner scanner;
+    private User currentUser;
+    private boolean running;
+
+    public ConsoleInterface() {
+        this.urlService = new UrlShortenerService();
+        this.notificationService = NotificationService.getInstance();
+        this.scanner = new Scanner(System.in);
+        this.running = true;
+    }
+
+    /**
+     * Starts the console interface
+     */
+    public void start() {
+        displayWelcome();
+        initializeUser();
+        
+        while (running) {
+            displayNotifications();
+            displayMenu();
+            handleUserChoice();
+        }
+        
+        displayGoodbye();
+        
+        // Clean up notifications on exit
+        notificationService.clearAllNotifications();
+        urlService.shutdown();
+    }
+
+    private static void displayWelcome() {
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("🔗 WELCOME TO URL SHORTENER SERVICE");
+        System.out.println("=".repeat(60));
+        System.out.println("Transform your long URLs into short, manageable links!");
+        System.out.println("Each user gets unique short URLs with click tracking.");
+        System.out.println("=".repeat(60));
+    }
+
+    private void initializeUser() {
+        System.out.println("\n🆔 USER IDENTIFICATION");
+        System.out.println("1. Create new user session");
+        System.out.println("2. Continue with existing user ID");
+        System.out.print("Choose option (1-2): ");
+        
+        String choice = scanner.nextLine().trim();
+        
+        switch (choice) {
+            case "1":
+                currentUser = urlService.createUser();
+                System.out.println("✅ New user created!");
+                System.out.println("📋 Your User ID: " + currentUser.getUuid());
+                System.out.println("💡 Save this ID to continue your session later.");
+                break;
+            case "2":
+                System.out.print("Enter your User ID: ");
+                String userIdStr = scanner.nextLine().trim();
+                try {
+                    UUID userId = UUID.fromString(userIdStr);
+                    currentUser = urlService.getUser(userId);
+                    if (currentUser == null) {
+                        System.out.println("❌ User not found. Creating new user...");
+                        currentUser = urlService.createUser();
+                        System.out.println("📋 Your new User ID: " + currentUser.getUuid());
+                    } else {
+                        System.out.println("✅ Welcome back!");
+                    }
+                } catch (IllegalArgumentException e) {
+                    System.out.println("❌ Invalid User ID format. Creating new user...");
+                    currentUser = urlService.createUser();
+                    System.out.println("📋 Your new User ID: " + currentUser.getUuid());
+                }
+                break;
+            default:
+                System.out.println("Invalid choice. Creating new user...");
+                currentUser = urlService.createUser();
+                System.out.println("📋 Your User ID: " + currentUser.getUuid());
+        }
+    }
+
+    private void displayNotifications() {
+        if (notificationService.hasNotifications(currentUser.getUuid())) {
+            notificationService.displayNotifications(currentUser.getUuid());
+        }
+    }
+
+    private static void displayMenu() {
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("🔗 URL SHORTENER - MAIN MENU");
+        System.out.println("=".repeat(60));
+        System.out.println("1. 📝 Create short URL");
+        System.out.println("2. 📋 View my URLs");
+        System.out.println("3. 🌐 Access short URL");
+        System.out.println("4. 📊 View URL statistics");
+        System.out.println("5. 👤 User information");
+        System.out.println("6. 🔧 System statistics");
+        System.out.println("7. 🧹 Clear my notifications");
+        System.out.println("8. ❌ Exit");
+        System.out.println("=".repeat(60));
+        System.out.print("Choose option (1-8): ");
+    }
+
+    private void handleUserChoice() {
+        String choice = scanner.nextLine().trim();
+        
+        switch (choice) {
+            case "1":
+                createShortUrl();
+                break;
+            case "2":
+                viewMyUrls();
+                break;
+            case "3":
+                accessShortUrl();
+                break;
+            case "4":
+                viewUrlStatistics();
+                break;
+            case "5":
+                viewUserInformation();
+                break;
+            case "6":
+                viewSystemStatistics();
+                break;
+            case "7":
+                clearNotifications();
+                break;
+            case "8":
+                running = false;
+                break;
+            default:
+                System.out.println("❌ Invalid choice. Please try again.");
+        }
+    }
+
+    private void createShortUrl() {
+        System.out.println("\n📝 CREATE SHORT URL");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter the URL to shorten: ");
+        String originalUrl = scanner.nextLine().trim();
+        
+        if (originalUrl.isEmpty()) {
+            System.out.println("❌ URL cannot be empty.");
+            return;
+        }
+        
+        try {
+            ShortenedUrl shortenedUrl = urlService.shortenUrl(originalUrl, currentUser.getUuid());
+            
+            System.out.println("\n✅ SUCCESS!");
+            System.out.println("📋 Original URL: " + shortenedUrl.getOriginalUrl());
+            System.out.println("🔗 Short URL: " + shortenedUrl.getFullShortUrl());
+            System.out.println("🎯 Click limit: " + shortenedUrl.getMaxClicks());
+            System.out.println("⏰ Expires: " + shortenedUrl.getExpiresAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            
+        } catch (IllegalArgumentException e) {
+            System.out.println("❌ Error: " + e.getMessage());
+        }
+    }
+
+    private void viewMyUrls() {
+        System.out.println("\n📋 MY SHORTENED URLS");
+        System.out.println("-".repeat(40));
+        
+        List<ShortenedUrl> urls = urlService.getUserUrls(currentUser.getUuid());
+        
+        if (urls.isEmpty()) {
+            System.out.println("📭 You haven't created any short URLs yet.");
+            return;
+        }
+        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        
+        for (int i = 0; i < urls.size(); i++) {
+            ShortenedUrl url = urls.get(i);
+            System.out.println("\n" + (i + 1) + ". " + url.getFullShortUrl());
+            System.out.println("   📋 Original: " + url.getOriginalUrl());
+            System.out.println("   📊 Clicks: " + url.getClickCount() + "/" + url.getMaxClicks());
+            System.out.println("   📅 Created: " + url.getCreatedAt().format(formatter));
+            System.out.println("   ⏰ Expires: " + url.getExpiresAt().format(formatter));
+            System.out.println("   🔘 Status: " + getStatusDisplay(url));
+        }
+    }
+
+    private void accessShortUrl() {
+        System.out.println("\n🌐 ACCESS SHORT URL");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter short URL or just the code (e.g., clck.ru/abc123 or abc123): ");
+        String input = scanner.nextLine().trim();
+        
+        if (input.isEmpty()) {
+            System.out.println("❌ Input cannot be empty.");
+            return;
+        }
+        
+        String shortCode = extractShortCode(input);
+        
+        if (shortCode == null) {
+            System.out.println("❌ Invalid short URL format.");
+            return;
+        }
+        
+        System.out.println("🔄 Accessing: clck.ru/" + shortCode);
+        urlService.accessUrl(shortCode);
+    }
+
+    private void viewUrlStatistics() {
+        System.out.println("\n📊 URL STATISTICS");
+        System.out.println("-".repeat(40));
+        
+        System.out.print("Enter short code: ");
+        String shortCode = scanner.nextLine().trim();
+        
+        if (shortCode.isEmpty()) {
+            System.out.println("❌ Short code cannot be empty.");
+            return;
+        }
+        
+        ShortenedUrl url = urlService.getUrlInfo(shortCode);
+        
+        if (url == null) {
+            System.out.println("❌ Short URL not found or invalid format.");
+            System.out.println("💡 Make sure the short code contains only letters and numbers.");
+            return;
+        }
+        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        
+        System.out.println("\n📊 URL DETAILS");
+        System.out.println("🔗 Short URL: " + url.getFullShortUrl());
+        System.out.println("📋 Original URL: " + url.getOriginalUrl());
+        System.out.println("👤 Owner: " + (url.getUserId().equals(currentUser.getUuid()) ? "You" : "Another user"));
+        System.out.println("📊 Clicks: " + url.getClickCount() + "/" + url.getMaxClicks());
+        System.out.println("📅 Created: " + url.getCreatedAt().format(formatter));
+        System.out.println("⏰ Expires: " + url.getExpiresAt().format(formatter));
+        System.out.println("🔘 Status: " + getStatusDisplay(url));
+    }
+
+    private void viewUserInformation() {
+        System.out.println("\n👤 USER INFORMATION");
+        System.out.println("-".repeat(40));
+        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        
+        System.out.println("🆔 User ID: " + currentUser.getUuid());
+        System.out.println("📅 Created: " + currentUser.getCreatedAt().format(formatter));
+        System.out.println("🔗 Total URLs: " + currentUser.getShortenedUrls().size());
+        System.out.println("📬 Notifications: " + notificationService.getNotificationCount(currentUser.getUuid()));
+    }
+
+    private void viewSystemStatistics() {
+        System.out.println("\n🔧 SYSTEM STATISTICS");
+        System.out.println("-".repeat(40));
+        System.out.println(urlService.getStatistics());
+    }
+
+    private void clearNotifications() {
+        System.out.println("\n🧹 CLEAR NOTIFICATIONS");
+        System.out.println("-".repeat(40));
+        
+        int notificationCount = notificationService.getNotificationCount(currentUser.getUuid());
+        
+        if (notificationCount == 0) {
+            System.out.println("📭 You have no pending notifications to clear.");
+            return;
+        }
+        
+        System.out.println("📬 You have " + notificationCount + " pending notification(s).");
+        System.out.print("Are you sure you want to clear all notifications? (y/N): ");
+        
+        String confirmation = scanner.nextLine().trim().toLowerCase();
+        
+        if (confirmation.equals("y") || confirmation.equals("yes")) {
+            notificationService.clearNotifications(currentUser.getUuid());
+            System.out.println("✅ All notifications cleared successfully!");
+        } else {
+            System.out.println("❌ Operation cancelled. Notifications preserved.");
+        }
+    }
+
+    private static String extractShortCode(String input) {
+        if (input.startsWith("clck.ru/")) {
+            return input.substring(8);
+        }
+        if (input.startsWith("http://clck.ru/") || input.startsWith("https://clck.ru/")) {
+            int index = input.lastIndexOf('/');
+            return index == -1 ? null : input.substring(index + 1);
+        }
+        return input;
+    }
+
+    private static String getStatusDisplay(ShortenedUrl url) {
+        switch (url.getStatus()) {
+            case ACTIVE:
+                if (url.isExpired()) {
+                    return "🔴 EXPIRED";
+                } else if (url.isClickLimitReached()) {
+                    return "🟡 LIMIT REACHED";
+                } else {
+                    return "🟢 ACTIVE";
+                }
+            case EXPIRED:
+                return "🔴 EXPIRED";
+            case LIMIT_EXCEEDED:
+                return "🟡 LIMIT EXCEEDED";
+            case INACTIVE:
+                return "⚫ INACTIVE";
+            default:
+                return "❓ UNKNOWN";
+        }
+    }
+
+    private void displayGoodbye() {
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("👋 THANK YOU FOR USING URL SHORTENER SERVICE!");
+        System.out.println("=".repeat(60));
+        System.out.println("💡 Remember your User ID: " + currentUser.getUuid());
+        System.out.println("🔄 Use it to continue your session next time.");
+        System.out.println("=".repeat(60));
+    }
+}
